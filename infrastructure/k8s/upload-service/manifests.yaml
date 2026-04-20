@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: upload-service
+  namespace: echomeet
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: upload-service
+  template:
+    metadata:
+      labels:
+        app: upload-service
+    spec:
+      containers:
+      - name: upload-service
+        image: echomeet/upload-service:latest
+        ports:
+        - containerPort: 3001
+        envFrom:
+        - configMapRef:
+            name: upload-service-config
+        - secretRef:
+            name: echomeet-secrets
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: upload-service
+  namespace: echomeet
+spec:
+  selector:
+    app: upload-service
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3001
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: upload-service-config
+  namespace: echomeet
+data:
+  NODE_ENV: "production"
+  PORT: "3001"
+  AWS_REGION: "us-east-1"
+  S3_BUCKET_NAME: "echomeet-raw-audio"

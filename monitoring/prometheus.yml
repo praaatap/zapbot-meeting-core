@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:3000']
+
+  - job_name: 'upload-service'
+    static_configs:
+      - targets: ['upload-service:3001']
+
+  - job_name: 'transcription-service'
+    static_configs:
+      - targets: ['transcription-service:3002']
+
+  - job_name: 'diarization-service'
+    static_configs:
+      - targets: ['diarization-service:3003']
+
+  - job_name: 'summary-service'
+    static_configs:
+      - targets: ['summary-service:3004']
+
+  - job_name: 'delivery-service'
+    static_configs:
+      - targets: ['delivery-service:3005']
+
+  - job_name: 'bot-service'
+    static_configs:
+      - targets: ['bot-service:3006']

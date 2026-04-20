@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transcription-service
+  namespace: echomeet
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: transcription-service
+  template:
+    metadata:
+      labels:
+        app: transcription-service
+    spec:
+      containers:
+      - name: transcription-service
+        image: echomeet/transcription-service:latest
+        ports:
+        - containerPort: 3002
+        envFrom:
+        - configMapRef:
+            name: transcription-service-config
+        - secretRef:
+            name: echomeet-secrets
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3002
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3002
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transcription-service
+  namespace: echomeet
+spec:
+  selector:
+    app: transcription-service
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3002
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: transcription-service-config
+  namespace: echomeet
+data:
+  NODE_ENV: "production"
+  PORT: "3002"
+  MONGODB_URI: "mongodb://mongodb.echomeet.svc.cluster.local:27017/echomeet"
+  AWS_REGION: "us-east-1"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: transcription-service-hpa
+  namespace: echomeet
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: transcription-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

@@ -1,0 +1,144 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  localstack:
+    image: localstack/localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,sqs,ses
+      - DEBUG=1
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - ./localstack/init-aws.sh:/etc/localstack/init-scripts/privileged.sh
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - JWT_SECRET=test_secret
+      - REDIS_URL=redis://redis:6379
+      - UPLOAD_SERVICE_URL=http://upload-service:3001
+      - DELIVERY_SERVICE_URL=http://delivery-service:3005
+    depends_on:
+      - redis
+
+  upload-service:
+    build:
+      context: ..
+      dockerfile: services/upload-service/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - AWS_REGION=us-east-1
+      - S3_BUCKET_NAME=echomeet-raw-audio
+      - S3_ENDPOINT=http://localstack:4566
+      - TRANSCRIPTION_QUEUE_URL=http://localstack:4566/000000000000/echomeet-transcription-queue
+    depends_on:
+      - localstack
+
+  transcription-service:
+    build:
+      context: ..
+      dockerfile: services/transcription-service/Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MONGODB_URI=mongodb://mongodb:27017/echomeet
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AWS_REGION=us-east-1
+      - S3_ENDPOINT=http://localstack:4566
+      - TRANSCRIPTION_QUEUE_URL=http://localstack:4566/000000000000/echomeet-transcription-queue
+      - DIARIZATION_QUEUE_URL=http://localstack:4566/000000000000/echomeet-diarization-queue
+    depends_on:
+      - mongodb
+      - localstack
+
+  diarization-service:
+    build:
+      context: ..
+      dockerfile: services/diarization-service/Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - MONGODB_URI=mongodb://mongodb:27017/echomeet
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AWS_REGION=us-east-1
+      - S3_ENDPOINT=http://localstack:4566
+      - DIARIZATION_QUEUE_URL=http://localstack:4566/000000000000/echomeet-diarization-queue
+      - SUMMARY_QUEUE_URL=http://localstack:4566/000000000000/echomeet-summary-queue
+    depends_on:
+      - mongodb
+      - localstack
+
+  summary-service:
+    build:
+      context: ..
+      dockerfile: services/summary-service/Dockerfile
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - MONGODB_URI=mongodb://mongodb:27017/echomeet
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AWS_REGION=us-east-1
+      - S3_ENDPOINT=http://localstack:4566
+      - SUMMARY_QUEUE_URL=http://localstack:4566/000000000000/echomeet-summary-queue
+      - DELIVERY_QUEUE_URL=http://localstack:4566/000000000000/echomeet-delivery-queue
+    depends_on:
+      - mongodb
+      - localstack
+
+  delivery-service:
+    build:
+      context: ..
+      dockerfile: services/delivery-service/Dockerfile
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+      - MONGODB_URI=mongodb://mongodb:27017/echomeet
+      - AWS_REGION=us-east-1
+      - S3_ENDPOINT=http://localstack:4566
+      - S3_REPORTS_BUCKET=echomeet-reports
+      - SES_ENDPOINT=http://localstack:4566
+      - SES_FROM_EMAIL=reports@echomeet.ai
+      - DELIVERY_QUEUE_URL=http://localstack:4566/000000000000/echomeet-delivery-queue
+    depends_on:
+      - mongodb
+      - localstack
+
+  bot-service:
+    build:
+      context: ..
+      dockerfile: services/bot-service/Dockerfile
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+      - MONGODB_URI=mongodb://mongodb:27017/echomeet
+      - UPLOAD_SERVICE_URL=http://upload-service:3001
+    depends_on:
+      - mongodb
+
+volumes:
+  mongodb_data:

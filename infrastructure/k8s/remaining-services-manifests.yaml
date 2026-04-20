@@ -1,0 +1,152 @@
+# Diarization Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diarization-service
+  namespace: echomeet
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: diarization-service
+  template:
+    metadata:
+      labels:
+        app: diarization-service
+    spec:
+      containers:
+      - name: diarization-service
+        image: echomeet/diarization-service:latest
+        ports:
+        - containerPort: 3003
+        envFrom:
+        - configMapRef:
+            name: diarization-service-config
+        - secretRef:
+            name: echomeet-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: diarization-service
+  namespace: echomeet
+spec:
+  selector:
+    app: diarization-service
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3003
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: diarization-service-config
+  namespace: echomeet
+data:
+  NODE_ENV: "production"
+  PORT: "3003"
+  MONGODB_URI: "mongodb://mongodb.echomeet.svc.cluster.local:27017/echomeet"
+---
+# Summary Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: summary-service
+  namespace: echomeet
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: summary-service
+  template:
+    metadata:
+      labels:
+        app: summary-service
+    spec:
+      containers:
+      - name: summary-service
+        image: echomeet/summary-service:latest
+        ports:
+        - containerPort: 3004
+        envFrom:
+        - configMapRef:
+            name: summary-service-config
+        - secretRef:
+            name: echomeet-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: summary-service
+  namespace: echomeet
+spec:
+  selector:
+    app: summary-service
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3004
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: summary-service-config
+  namespace: echomeet
+data:
+  NODE_ENV: "production"
+  PORT: "3004"
+  MONGODB_URI: "mongodb://mongodb.echomeet.svc.cluster.local:27017/echomeet"
+---
+# Delivery Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delivery-service
+  namespace: echomeet
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: delivery-service
+  template:
+    metadata:
+      labels:
+        app: delivery-service
+    spec:
+      containers:
+      - name: delivery-service
+        image: echomeet/delivery-service:latest
+        ports:
+        - containerPort: 3005
+        envFrom:
+        - configMapRef:
+            name: delivery-service-config
+        - secretRef:
+            name: echomeet-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: delivery-service
+  namespace: echomeet
+spec:
+  selector:
+    app: delivery-service
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3005
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: delivery-service-config
+  namespace: echomeet
+data:
+  NODE_ENV: "production"
+  PORT: "3005"
+  MONGODB_URI: "mongodb://mongodb.echomeet.svc.cluster.local:27017/echomeet"
+  AWS_REGION: "us-east-1"
+  S3_REPORTS_BUCKET: "echomeet-reports"
+  SES_FROM_EMAIL: "reports@echomeet.ai"
